@@ -10,6 +10,7 @@ import EditProject from '../../components/EditProject';
 import Loading from '../../components/Loading';
 import { ProjectType } from '../../types/project';
 import axios from '../../axios';
+import { ExpenseType } from '../../types/expense';
 
 const Project = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -32,6 +33,20 @@ const Project = () => {
     loadProjectList();
   }, []);
 
+  const handleUpdate = () => {
+    setSelectedProject(null);
+    loadProjectList();
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    try {
+      await axios.delete(`/project/${id}`);
+      loadProjectList();
+    } catch (err) {
+      console.log('Failed to Delete: ', err);
+    }
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'name',
@@ -45,7 +60,14 @@ const Project = () => {
         </Link>
       ),
     },
-    { field: 'expense', headerName: 'Expense', flex: 1 },
+    {
+      field: 'expenses',
+      headerName: 'Expenses',
+      flex: 1,
+      renderCell: ({ value = [] }) => (
+        <Box>{value.map((ex: ExpenseType) => ex.name).join(',')}</Box>
+      ),
+    },
     { field: 'createdAt', headerName: 'Created Date', width: 150 },
     {
       field: 'actions',
@@ -63,6 +85,7 @@ const Project = () => {
           <Button
             color="error"
             sx={{ minWidth: 'auto', borderRadius: 5, p: 1 }}
+            onClick={() => handleDeleteProject(row.id)}
           >
             <DeleteIcon sx={{ fontSize: 20 }} />
           </Button>
@@ -121,6 +144,7 @@ const Project = () => {
       {!!selectedProject && (
         <EditProject
           onClose={() => setSelectedProject(null)}
+          onUpdate={handleUpdate}
           project={selectedProject}
         />
       )}

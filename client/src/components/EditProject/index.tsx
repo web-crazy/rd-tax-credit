@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -8,14 +8,14 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import * as Yup from 'yup';
 
 import FormContainer from '../Inputs/FormContainer';
 import TextField from '../Inputs/TextField';
-import Select from '../Inputs/Select';
+import MultiSelect from '../Inputs/MultiSelect';
 import { ProjectType } from '../../types/project';
 import { ExpenseType } from '../../types/expense';
 import axios from '../../axios';
-import * as Yup from 'yup';
 import Loading from '../Loading';
 
 type FormSubmitType = {
@@ -26,25 +26,44 @@ type FormSubmitType = {
 type EditProjectType = {
   project: ProjectType;
   onClose: () => void;
+  onUpdate: () => void;
 };
 
-const EditProject: React.FC<EditProjectType> = ({ project, onClose }) => {
+const EditProject: React.FC<EditProjectType> = ({
+  project,
+  onClose,
+  onUpdate,
+}) => {
   const [expenses, setExpenses] = useState<ExpenseType[]>([]);
   const [loading, setLoading] = useState(true);
+  const isEdit = !!project?.id;
 
   const validationSchema = Yup.object().shape({
     name: Yup.string().nullable().required('Name is required'),
-    expense: Yup.string().nullable().required('Expense is required'),
+    expenses: Yup.array().of(Yup.string()).min(1, 'Expense is required'),
   });
 
   const initialValues = {
     name: project?.name || '',
-    expense: project?.expenseId || '',
+    expenses: project?.expenses?.map((ex: ExpenseType) => ex.id) || [],
   };
 
-  const handleFormSubmit = (values: FormSubmitType) => {
-    console.log('Form Values: ', values);
-  };
+  const handleFormSubmit = useCallback(
+    async (values: FormSubmitType) => {
+      console.log('Form Values: ', values);
+      try {
+        if (isEdit) {
+          await axios.put(`/project/${project.id}`, values);
+        } else {
+          await axios.post('/project', values);
+        }
+        onUpdate();
+      } catch (err) {
+        console.log('Create or Edit Failed: ', err);
+      }
+    },
+    [isEdit],
+  );
 
   const loadExpenseList = async () => {
     try {
@@ -60,8 +79,6 @@ const EditProject: React.FC<EditProjectType> = ({ project, onClose }) => {
   useEffect(() => {
     loadExpenseList();
   }, []);
-
-  const isEdit = !!project?.id;
 
   if (loading) {
     return (
@@ -108,13 +125,20 @@ const EditProject: React.FC<EditProjectType> = ({ project, onClose }) => {
           <Stack spacing={2}>
             <TextField fullWidth name="name" variant="outlined" label="Name" />
 
-            <Select
-              fullWidth
-              name="expense"
-              label="Expense"
+            <MultiSelect
+              name="expenses"
+              label="Expenses"
               options={expenses}
               valueKey="id"
               labelKey="name"
+              // eslint-disable-next-line
+              renderValue={(selected: any) => {
+                // eslint-disable-next-line
+                const data = expenses.filter((item: ExpenseType) => selected.includes(item.id || ''))
+                  .map((item: ExpenseType) => item.name)
+                  .join(', ');
+                return data;
+              }}
             />
 
             <Box display="flex" justifyContent="flex-end">
